@@ -208,17 +208,23 @@
     }
 
     window.onload = async () => {
-      const username = localStorage.getItem(usernameKey);
-      if (username) {
-        const res = await fetch(`${API_BASE}/api/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password: "" })
-        });
-        const data = await res.json();
-        toggleLoginUI(true, username, data.memberExpiresAt);
-      }
-    };
+  const username = localStorage.getItem(usernameKey);
+  if (username) {
+    const res = await fetch(`${API_BASE}/api/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username }),
+    });
+
+    if (res.status === 200) {
+      const data = await res.json();
+      toggleLoginUI(true, username, data.memberExpiresAt);
+    } else {
+      toggleLoginUI(false);
+    }
+  }
+};
+
   </script>
 </body>
 </html>
