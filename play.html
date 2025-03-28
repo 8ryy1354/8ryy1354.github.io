@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>播放页面</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+  <h2>视频播放</h2>
+  <video id="video" controls style="width: 100%; max-width: 600px;"></video>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const videoUrl = urlParams.get('url');
+
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(videoUrl);
+      hls.attachMedia(document.getElementById('video'));
+      hls.on(Hls.Events.MANIFEST_PARSED, function () {
+        const video = document.getElementById('video');
+        video.play();
+        video.currentTime = 20; // 快进 20 秒
+      });
+    } else {
+      alert("你的浏览器不支持 HLS 播放");
+    }
+  </script>
+</body>
+</html>
