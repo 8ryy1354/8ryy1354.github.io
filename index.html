@@ -1,105 +1,73 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>视频播放与会员系统</title>
+  <meta charset="UTF-8" />
+  <title>视频平台</title>
 </head>
 <body>
-    <h1>视频播放与会员系统</h1>
+  <h2>注册</h2>
+  <input id="reg-username" placeholder="用户名">
+  <input id="reg-password" placeholder="密码" type="password">
+  <button onclick="register()">注册</button>
 
-    <!-- 用户注册表单 -->
-    <div id="register-form">
-        <h2>注册</h2>
-        <input type="text" id="username" placeholder="用户名" />
-        <input type="password" id="password" placeholder="密码" />
-        <button onclick="register()">注册</button>
-    </div>
+  <h2>登录</h2>
+  <input id="login-username" placeholder="用户名">
+  <input id="login-password" placeholder="密码" type="password">
+  <button onclick="login()">登录</button>
 
-    <!-- 用户登录表单 -->
-    <div id="login-form">
-        <h2>登录</h2>
-        <input type="text" id="login-username" placeholder="用户名" />
-        <input type="password" id="login-password" placeholder="密码" />
-        <button onclick="login()">登录</button>
-    </div>
+  <h2>激活会员</h2>
+  <input id="activation-code" placeholder="激活码">
+  <button onclick="activate()">激活</button>
 
-    <!-- 激活码输入 -->
-    <div id="activation-form">
-        <h2>激活码</h2>
-        <input type="text" id="activation-code" placeholder="输入激活码" />
-        <button onclick="activate()">激活</button>
-    </div>
+  <h2>输入番号</h2>
+  <input id="video-id" placeholder="例：IPX-123">
+  <button onclick="getVideo()">播放</button>
 
-    <!-- 番号输入与视频播放 -->
-    <div id="video-play">
-        <h2>请输入番号</h2>
-        <input type="text" id="video-id" placeholder="输入番号" />
-        <button onclick="getVideoLink()">获取视频链接</button>
+  <script>
+    let currentUser = "";
 
-        <video id="player" controls>
-            <source id="video-source" type="application/x-mpegURL">
-            Your browser does not support the video tag.
-        </video>
-    </div>
+    async function register() {
+      const username = document.getElementById("reg-username").value;
+      const password = document.getElementById("reg-password").value;
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      });
+      alert((await res.json()).message);
+    }
 
-    <script>
-        async function register() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            // 发送注册请求到 Cloudflare Workers
-            const response = await fetch('/api/register', {
-                method: 'POST',
-                body: JSON.stringify({ username, password }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            alert(result.message);
-        }
+    async function login() {
+      const username = document.getElementById("login-username").value;
+      const password = document.getElementById("login-password").value;
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      alert(data.message);
+      if (res.ok) currentUser = username;
+    }
 
-        async function login() {
-            const username = document.getElementById('login-username').value;
-            const password = document.getElementById('login-password').value;
-            // 发送登录请求到 Cloudflare Workers
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                body: JSON.stringify({ username, password }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            if (result.success) {
-                alert("登录成功!");
-                document.getElementById("activation-form").style.display = "block";
-            } else {
-                alert("登录失败!");
-            }
-        }
+    async function activate() {
+      const code = document.getElementById("activation-code").value;
+      if (!currentUser) return alert("请先登录！");
+      const res = await fetch('/api/activate', {
+        method: 'POST',
+        body: JSON.stringify({ username: currentUser, code }),
+      });
+      alert((await res.json()).message);
+    }
 
-        async function activate() {
-            const activationCode = document.getElementById('activation-code').value;
-            // 发送激活码验证请求到 Cloudflare Workers
-            const response = await fetch('/api/activate', {
-                method: 'POST',
-                body: JSON.stringify({ activationCode }),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            alert(result.message);
-        }
-
-        async function getVideoLink() {
-            const videoId = document.getElementById('video-id').value;
-            const response = await fetch(`/api/video/${videoId}`);
-            const result = await response.json();
-            if (result.success) {
-                const videoBaseUrl = result.videoBaseUrl;
-                const videoUrl = `${videoBaseUrl}/index.m3u8`; // 拼接链接
-                document.getElementById('video-source').src = videoUrl; // 更新播放器的链接
-                document.getElementById('player').load(); // 刷新播放器
-            } else {
-                alert('无法找到该番号的视频链接');
-            }
-        }
-    </script>
+    async function getVideo() {
+      const id = document.getElementById("video-id").value;
+      const res = await fetch(`/api/video/${id}`);
+      const data = await res.json();
+      if (data.success) {
+        window.location.href = `play.html?url=${encodeURIComponent(data.videoUrl)}`;
+      } else {
+        alert("未找到视频");
+      }
+    }
+  </script>
 </body>
 </html>
