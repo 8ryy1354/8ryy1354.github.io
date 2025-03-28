@@ -1,30 +1,92 @@
-<!-- play.html -->
 <!DOCTYPE html>
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>播放页面</title>
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <title>视频平台</title>
+  <style>
+    body { font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px; }
+    input, button { display: block; width: 100%; margin: 10px 0; padding: 8px; }
+  </style>
 </head>
 <body>
-  <h2>视频播放</h2>
-  <video id="video" controls style="width: 100%; max-width: 600px;"></video>
+  <h2>用户注册</h2>
+  <input type="text" id="reg-username" placeholder="用户名" />
+  <input type="password" id="reg-password" placeholder="密码" />
+  <button onclick="register()">注册</button>
+
+  <h2>用户登录</h2>
+  <input type="text" id="login-username" placeholder="用户名" />
+  <input type="password" id="login-password" placeholder="密码" />
+  <button onclick="login()">登录</button>
+
+  <h2>会员激活</h2>
+  <input type="text" id="activation-code" placeholder="激活码" />
+  <button onclick="activate()">激活</button>
+
+  <h2>视频播放入口</h2>
+  <input type="text" id="video-id" placeholder="请输入番号，如 IPX-123" />
+  <button onclick="watchVideo()">播放</button>
+
+  <div id="message" style="margin-top:20px; color:green;"></div>
 
   <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const videoUrl = urlParams.get('url');
+    const API_BASE = "https://8ryy1354.8ryingye.workers.dev";
 
-    if (Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(videoUrl);
-      hls.attachMedia(document.getElementById('video'));
-      hls.on(Hls.Events.MANIFEST_PARSED, function () {
-        const video = document.getElementById('video');
-        video.play();
-        video.currentTime = 20; // 快进 20 秒
+    function showMsg(msg, error = false) {
+      const box = document.getElementById("message");
+      box.style.color = error ? "red" : "green";
+      box.textContent = msg;
+    }
+
+    async function register() {
+      const username = document.getElementById("reg-username").value;
+      const password = document.getElementById("reg-password").value;
+      const res = await fetch(`${API_BASE}/api/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
       });
-    } else {
-      alert("你的浏览器不支持 HLS 播放");
+      const data = await res.json();
+      showMsg(data.message, res.status !== 200);
+    }
+
+    async function login() {
+      const username = document.getElementById("login-username").value;
+      const password = document.getElementById("login-password").value;
+      const res = await fetch(`${API_BASE}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      showMsg(data.message, res.status !== 200);
+      if (res.status === 200) localStorage.setItem("username", username);
+    }
+
+    async function activate() {
+      const username = localStorage.getItem("username");
+      const code = document.getElementById("activation-code").value;
+      if (!username) return showMsg("请先登录再激活", true);
+      const res = await fetch(`${API_BASE}/api/activate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, code })
+      });
+      const data = await res.json();
+      showMsg(data.message, res.status !== 200);
+    }
+
+    async function watchVideo() {
+      const videoId = document.getElementById("video-id").value.trim();
+      if (!videoId) return showMsg("请输入番号", true);
+      const res = await fetch(`${API_BASE}/api/video/${videoId}`);
+      const data = await res.json();
+      if (data.success) {
+        const url = `play.html?url=${encodeURIComponent(data.videoUrl)}`;
+        window.open(url, "_blank");
+      } else {
+        showMsg("视频获取失败", true);
+      }
     }
   </script>
 </body>
