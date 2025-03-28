@@ -1,46 +1,66 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <title>视频平台</title>
+  <meta charset="UTF-8">
+  <title>会员系统 + 视频播放</title>
+  <style>
+    body { font-family: Arial; padding: 20px; max-width: 500px; margin: auto; }
+    input { margin: 5px 0; padding: 8px; width: 100%; }
+    button { padding: 8px 16px; margin-top: 10px; }
+    .section { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+  </style>
 </head>
 <body>
-  <h2>注册</h2>
-  <input id="reg-username" placeholder="用户名">
-  <input id="reg-password" placeholder="密码" type="password">
-  <button onclick="register()">注册</button>
+  <h2>视频会员系统</h2>
 
-  <h2>登录</h2>
-  <input id="login-username" placeholder="用户名">
-  <input id="login-password" placeholder="密码" type="password">
-  <button onclick="login()">登录</button>
+  <div class="section">
+    <h3>注册账号</h3>
+    <input type="text" id="reg-username" placeholder="用户名">
+    <input type="password" id="reg-password" placeholder="密码">
+    <button onclick="register()">注册</button>
+  </div>
 
-  <h2>激活会员</h2>
-  <input id="activation-code" placeholder="激活码">
-  <button onclick="activate()">激活</button>
+  <div class="section">
+    <h3>登录账号</h3>
+    <input type="text" id="login-username" placeholder="用户名">
+    <input type="password" id="login-password" placeholder="密码">
+    <button onclick="login()">登录</button>
+  </div>
 
-  <h2>输入番号</h2>
-  <input id="video-id" placeholder="例：IPX-123">
-  <button onclick="getVideo()">播放</button>
+  <div class="section">
+    <h3>输入激活码</h3>
+    <input type="text" id="activation-code" placeholder="激活码">
+    <button onclick="activate()">激活</button>
+  </div>
+
+  <div class="section">
+    <h3>输入番号观看</h3>
+    <input type="text" id="video-id" placeholder="如 IPX-123">
+    <button onclick="getVideo()">播放</button>
+  </div>
 
   <script>
-    let currentUser = "";
+    const apiBase = "https://8ryy1354.8ryingye.workers.dev";
+    let currentUser = null;
 
     async function register() {
       const username = document.getElementById("reg-username").value;
       const password = document.getElementById("reg-password").value;
-      const res = await fetch('/api/register', {
+      const res = await fetch(`${apiBase}/api/register`, {
         method: 'POST',
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      alert((await res.json()).message);
+      const data = await res.json();
+      alert(data.message);
     }
 
     async function login() {
       const username = document.getElementById("login-username").value;
       const password = document.getElementById("login-password").value;
-      const res = await fetch('/api/login', {
+      const res = await fetch(`${apiBase}/api/login`, {
         method: 'POST',
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
@@ -51,21 +71,24 @@
     async function activate() {
       const code = document.getElementById("activation-code").value;
       if (!currentUser) return alert("请先登录！");
-      const res = await fetch('/api/activate', {
+      const res = await fetch(`${apiBase}/api/activate`, {
         method: 'POST',
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: currentUser, code }),
       });
-      alert((await res.json()).message);
+      const data = await res.json();
+      alert(data.message);
     }
 
     async function getVideo() {
       const id = document.getElementById("video-id").value;
-      const res = await fetch(`/api/video/${id}`);
+      const res = await fetch(`${apiBase}/api/video/${id}`);
       const data = await res.json();
       if (data.success) {
-        window.location.href = `play.html?url=${encodeURIComponent(data.videoUrl)}`;
+        const url = `${data.videoUrl}/index.m3u8`;
+        window.location.href = `play.html?url=${encodeURIComponent(url)}`;
       } else {
-        alert("未找到视频");
+        alert("未找到视频链接");
       }
     }
   </script>
