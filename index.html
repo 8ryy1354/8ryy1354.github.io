@@ -5,167 +5,197 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>视频平台</title>
   <style>
-    body { font-family: 'Arial', sans-serif; background-color: #f4f4f9; color: #333; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 30px auto; padding: 20px; background-color: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
-    h2 { text-align: center; color: #5c6bc0; }
-    .input-group { margin: 10px 0; }
-    input[type="text"], input[type="password"], input[type="button"] { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; }
-    input[type="button"] { background-color: #5c6bc0; color: white; border: none; cursor: pointer; }
-    input[type="button"]:hover { background-color: #4f5b91; }
-    .message { text-align: center; color: green; padding: 10px; }
-    .message.error { color: red; }
-    #video-container { margin-top: 20px; text-align: center; }
-    #video { width: 100%; max-width: 600px; border: 2px solid #ddd; border-radius: 8px; }
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 500px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="button"] {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    input[type="button"] {
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    input[type="button"]:hover {
+      background-color: #45a049;
+    }
+    .message {
+      text-align: center;
+      color: #333;
+      margin-top: 10px;
+    }
+    .error {
+      color: red;
+    }
+    #video-player {
+      width: 100%;
+      margin-top: 20px;
+      display: none;
+    }
+    video {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>视频平台</h2>
-    <div id="user-info">
-      <div class="input-group">
-        <input type="text" id="username" placeholder="用户名" />
-      </div>
-      <div class="input-group">
-        <input type="password" id="password" placeholder="密码" />
-      </div>
-      <div class="input-group">
-        <input type="button" value="登录/注册" onclick="loginOrRegister()" />
-      </div>
-      <div id="activation" class="input-group" style="display:none;">
-        <input type="text" id="activation-code" placeholder="激活码" />
-        <input type="button" value="激活会员" onclick="activateMembership()" />
-      </div>
-      <div id="logout-btn" style="display:none;">
-        <input type="button" value="退出登录" onclick="logout()" />
-      </div>
+    <h2>🎬 视频播放平台</h2>
+
+    <!-- 登录区域 -->
+    <div id="login-area">
+      <input type="text" id="username" placeholder="用户名" />
+      <input type="password" id="password" placeholder="密码" />
+      <input type="button" value="登录 / 注册" onclick="loginOrRegister()" />
     </div>
-    <div id="video-container" style="display:none;">
-      <input type="text" id="video-id" placeholder="请输入番号，如 IPX-123" />
-      <input type="button" value="播放视频" onclick="watchVideo()" />
-      <div id="player">
-        <h3>视频播放器</h3>
+
+    <!-- 登录成功后显示 -->
+    <div id="user-area" style="display:none;">
+      <div style="text-align: right;">
+        <span id="welcome-user"></span>
+        <input type="button" value="退出" onclick="logout()" style="background:#f44336; margin-left:10px;" />
+      </div>
+
+      <!-- 激活码 -->
+      <input type="text" id="activation-code" placeholder="输入激活码（如 abc123）" />
+      <input type="button" value="激活会员" onclick="activate()" />
+
+      <!-- 视频播放 -->
+      <input type="text" id="video-id" placeholder="输入番号（如 IPX-123）" />
+      <input type="button" value="播放视频" onclick="playVideo()" />
+
+      <div id="video-player">
         <video id="video" controls></video>
       </div>
     </div>
+
     <div class="message" id="message"></div>
   </div>
 
   <script>
-    const API_BASE = "https://8ryy1354.8ryingye.workers.dev";
-    const USERNAME_KEY = "username";
+    const API_BASE = 'https://8ryy1354.8ryingye.workers.dev';
+    const usernameKey = "username";
 
-    function showMsg(msg, error = false) {
-      const box = document.getElementById("message");
-      box.style.color = error ? "red" : "green";
-      box.textContent = msg;
+    function showMsg(msg, isError = false) {
+      const msgBox = document.getElementById("message");
+      msgBox.textContent = msg;
+      msgBox.className = isError ? "message error" : "message";
     }
 
-    function toggleLoginState(loggedIn) {
-      if (loggedIn) {
-        document.getElementById("user-info").style.display = "none";
-        document.getElementById("video-container").style.display = "block";
-        document.getElementById("logout-btn").style.display = "block";
-        document.getElementById("activation").style.display = "none";
-      } else {
-        document.getElementById("user-info").style.display = "block";
-        document.getElementById("video-container").style.display = "none";
-        document.getElementById("logout-btn").style.display = "none";
-        document.getElementById("activation").style.display = "block";
-      }
-    }
-
-    function saveUser(username) {
-      localStorage.setItem(USERNAME_KEY, username);
-    }
-
-    function clearUser() {
-      localStorage.removeItem(USERNAME_KEY);
+    function toggleLoginUI(isLoggedIn, username = "") {
+      document.getElementById("login-area").style.display = isLoggedIn ? "none" : "block";
+      document.getElementById("user-area").style.display = isLoggedIn ? "block" : "none";
+      document.getElementById("welcome-user").textContent = isLoggedIn ? `欢迎，${username}` : "";
     }
 
     async function loginOrRegister() {
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      if (!username || !password) return showMsg("请输入用户名和密码", true);
 
-      if (!username || !password) {
-        return showMsg("请输入用户名和密码", true);
-      }
-
-      const res = await fetch(`${API_BASE}/api/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-
-      if (res.status === 200) {
-        saveUser(username);
-        showMsg("登录成功");
-        toggleLoginState(true);
-      } else {
-        const registerRes = await fetch(`${API_BASE}/api/register`, {
+      try {
+        // 先尝试登录
+        const res = await fetch(`${API_BASE}/api/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ username, password }),
         });
 
-        if (registerRes.status === 200) {
-          showMsg("注册成功，继续登录");
-          loginOrRegister();  // 自动登录
+        if (res.status === 200) {
+          localStorage.setItem(usernameKey, username);
+          toggleLoginUI(true, username);
+          showMsg("登录成功");
         } else {
-          showMsg("注册失败，请稍后再试", true);
+          // 如果登录失败，则尝试注册
+          const regRes = await fetch(`${API_BASE}/api/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+          });
+
+          if (regRes.status === 200) {
+            showMsg("注册成功，正在登录...");
+            loginOrRegister(); // 再次登录
+          } else {
+            const err = await regRes.json();
+            showMsg(err.message || "注册失败", true);
+          }
         }
+      } catch (err) {
+        showMsg("连接失败，请稍后再试", true);
       }
     }
 
-    async function activateMembership() {
-      const username = localStorage.getItem(USERNAME_KEY);
-      const code = document.getElementById("activation-code").value;
-
-      if (!username) {
-        return showMsg("请先登录", true);
-      }
+    async function activate() {
+      const username = localStorage.getItem(usernameKey);
+      const code = document.getElementById("activation-code").value.trim();
+      if (!code) return showMsg("请输入激活码", true);
 
       const res = await fetch(`${API_BASE}/api/activate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, code })
+        body: JSON.stringify({ username, code }),
       });
 
       const data = await res.json();
       showMsg(data.message, res.status !== 200);
     }
 
-    async function logout() {
-      clearUser();
-      toggleLoginState(false);
-      showMsg("已退出登录");
-    }
-
-    async function watchVideo() {
+    async function playVideo() {
       const videoId = document.getElementById("video-id").value.trim();
       if (!videoId) return showMsg("请输入番号", true);
 
       const res = await fetch(`${API_BASE}/api/video/${videoId}`);
       const data = await res.json();
 
-      if (data.success) {
-        const url = `https://vip4.bbffsl.com/20250325/${videoId}/index.m3u8`;
+      if (data.success && data.videoUrl) {
+        document.getElementById("video-player").style.display = "block";
         const video = document.getElementById("video");
-        video.src = url;
+        video.src = data.videoUrl;
         video.play();
+        showMsg("开始播放视频");
       } else {
-        showMsg("视频获取失败", true);
+        showMsg("视频加载失败", true);
       }
     }
 
-    // On page load, check if the user is logged in
-    window.onload = function () {
-      const username = localStorage.getItem(USERNAME_KEY);
-      if (username) {
-        toggleLoginState(true);
-      } else {
-        toggleLoginState(false);
-      }
+    function logout() {
+      localStorage.removeItem(usernameKey);
+      toggleLoginUI(false);
+      showMsg("已退出");
     }
+
+    // 初始化状态
+    window.onload = () => {
+      const username = localStorage.getItem(usernameKey);
+      if (username) {
+        toggleLoginUI(true, username);
+      }
+    };
   </script>
 </body>
 </html>
