@@ -4,124 +4,90 @@
   <meta charset="UTF-8" />
   <title>视频平台</title>
   <style>
-    body { font-family: Arial; max-width: 600px; margin: 2em auto; }
-    input, button { display: block; margin: 10px 0; padding: 8px; width: 100%; }
-    .hidden { display: none; }
+    body { font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px; }
+    input, button { display: block; width: 100%; margin: 10px 0; padding: 8px; }
   </style>
 </head>
 <body>
-  <h2>欢迎使用视频平台</h2>
+  <h2>用户注册</h2>
+  <input type="text" id="reg-username" placeholder="用户名" />
+  <input type="password" id="reg-password" placeholder="密码" />
+  <button onclick="register()">注册</button>
 
-  <!-- 未登录时显示 -->
-  <div id="auth-section">
-    <h3>注册</h3>
-    <input type="text" id="register-username" placeholder="用户名">
-    <input type="password" id="register-password" placeholder="密码">
-    <button onclick="register()">注册</button>
+  <h2>用户登录</h2>
+  <input type="text" id="login-username" placeholder="用户名" />
+  <input type="password" id="login-password" placeholder="密码" />
+  <button onclick="login()">登录</button>
 
-    <h3>登录</h3>
-    <input type="text" id="login-username" placeholder="用户名">
-    <input type="password" id="login-password" placeholder="密码">
-    <button onclick="login()">登录</button>
-  </div>
+  <h2>会员激活</h2>
+  <input type="text" id="activation-code" placeholder="激活码" />
+  <button onclick="activate()">激活</button>
 
-  <!-- 登录后显示 -->
-  <div id="member-section" class="hidden">
-    <p>欢迎，<span id="user-display"></span>！<button onclick="logout()">退出</button></p>
+  <h2>视频播放入口</h2>
+  <input type="text" id="video-id" placeholder="请输入番号，如 IPX-123" />
+  <button onclick="watchVideo()">播放</button>
 
-    <h3>激活会员</h3>
-    <input type="text" id="activation-code" placeholder="输入激活码">
-    <button onclick="activate()">激活</button>
-
-    <h3>输入番号播放</h3>
-    <input type="text" id="video-code" placeholder="例如 IPX-123">
-    <button onclick="playVideo()">播放</button>
-  </div>
+  <div id="message" style="margin-top:20px; color:green;"></div>
 
   <script>
-    const apiBase = 'https://8ryy1354.8ryingye.workers.dev';
+    const API_BASE = "https://8ryy1354.8ryingye.workers.dev";
 
-    // 注册函数
+    function showMsg(msg, error = false) {
+      const box = document.getElementById("message");
+      box.style.color = error ? "red" : "green";
+      box.textContent = msg;
+    }
+
     async function register() {
-      const username = document.getElementById("register-username").value;
-      const password = document.getElementById("register-password").value;
-
-      const res = await fetch(`${apiBase}/api/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const username = document.getElementById("reg-username").value;
+      const password = document.getElementById("reg-password").value;
+      const res = await fetch(`${API_BASE}/api/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
       });
       const data = await res.json();
-      alert(data.message);
+      showMsg(data.message, res.status !== 200);
     }
 
-    // 登录函数
     async function login() {
       const username = document.getElementById("login-username").value;
       const password = document.getElementById("login-password").value;
-
-      const res = await fetch(`${apiBase}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(`${API_BASE}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
       });
       const data = await res.json();
-      alert(data.message);
-
-      if (data.success) {
-        localStorage.setItem("username", username);
-        updateUI();
-      }
+      showMsg(data.message, res.status !== 200);
+      if (res.status === 200) localStorage.setItem("username", username);
     }
 
-    // 激活函数
     async function activate() {
-      const code = document.getElementById("activation-code").value;
       const username = localStorage.getItem("username");
-
-      const res = await fetch(`${apiBase}/api/activate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activationCode: code, username })
+      const code = document.getElementById("activation-code").value;
+      if (!username) return showMsg("请先登录再激活", true);
+      const res = await fetch(`${API_BASE}/api/activate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, code })
       });
-
       const data = await res.json();
-      alert(data.message);
+      showMsg(data.message, res.status !== 200);
     }
 
-    // 播放视频函数
-    async function playVideo() {
-      const code = document.getElementById("video-code").value;
-      if (!code) return alert("请输入番号");
-      const res = await fetch(`${apiBase}/api/video/${code}`);
+    async function watchVideo() {
+      const videoId = document.getElementById("video-id").value.trim();
+      if (!videoId) return showMsg("请输入番号", true);
+      const res = await fetch(`${API_BASE}/api/video/${videoId}`);
       const data = await res.json();
       if (data.success) {
-        const fullUrl = `${data.videoBaseUrl}/index.m3u8`;
-        window.location.href = `play.html?url=${encodeURIComponent(fullUrl)}`;
+        const url = `play.html?url=${encodeURIComponent(data.videoUrl)}`;
+        window.open(url, "_blank");
       } else {
-        alert("未获取到视频链接");
+        showMsg("视频获取失败", true);
       }
     }
-
-    // UI 状态管理
-    function updateUI() {
-      const username = localStorage.getItem("username");
-      if (username) {
-        document.getElementById("auth-section").classList.add("hidden");
-        document.getElementById("member-section").classList.remove("hidden");
-        document.getElementById("user-display").innerText = username;
-      } else {
-        document.getElementById("auth-section").classList.remove("hidden");
-        document.getElementById("member-section").classList.add("hidden");
-      }
-    }
-
-    function logout() {
-      localStorage.removeItem("username");
-      updateUI();
-    }
-
-    updateUI();
   </script>
 </body>
 </html>
