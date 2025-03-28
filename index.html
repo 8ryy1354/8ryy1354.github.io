@@ -111,43 +111,65 @@
       }
     }
 
-    async function loginOrRegister() {
-      const username = document.getElementById("username").value.trim();
-      const password = document.getElementById("password").value.trim();
-      if (!username || !password) return showMsg("请输入用户名和密码", true);
+   async function loginOrRegister() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
+  
+  if (!username || !password) {
+    return showMsg("请输入用户名和密码", true);
+  }
 
-      try {
-        const hashedPassword = await hashPassword(password);
-        const res = await fetch(`${API_BASE}/api/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password: hashedPassword }),
-        });
+  try {
+    // 哈希密码
+    const hashedPassword = await hashPassword(password);
+    
+    // 尝试登录
+    const loginRes = await fetch(`${API_BASE}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password: hashedPassword }),
+    });
 
-        if (res.status === 200) {
-          const data = await res.json();
-          localStorage.setItem(usernameKey, username);
-          toggleLoginUI(true, username, data.memberExpiresAt);
-          showMsg("登录成功");
-        } else {
-          const regRes = await fetch(`${API_BASE}/api/register`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password: hashedPassword }),
-          });
-
-          if (regRes.status === 200) {
-            showMsg("注册成功，正在登录...");
-            loginOrRegister(); // 自动重试登录
-          } else {
-            const err = await regRes.json();
-            showMsg(err.message || "注册失败", true);
-          }
-        }
-      } catch (err) {
-        showMsg("网络错误，请稍后再试", true);
-      }
+    if (loginRes.ok) {
+      const data = await loginRes.json();
+      localStorage.setItem(usernameKey, username);
+      toggleLoginUI(true, username, data.memberExpiresAt);
+      showMsg("登录成功");
+      return;
     }
+
+    // 登录失败则尝试注册
+    const regRes = await fetch(`${API_BASE}/api/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password: hashedPassword }),
+    });
+
+    if (regRes.ok) {
+      showMsg("注册成功，正在自动登录...");
+      // 注册后立即登录
+      const loginAfterReg = await fetch(`${API_BASE}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password: hashedPassword }),
+      });
+      
+      if (loginAfterReg.ok) {
+        localStorage.setItem(usernameKey, username);
+        toggleLoginUI(true, username);
+        showMsg("登录成功");
+      } else {
+        showMsg("自动登录失败，请手动登录", true);
+      }
+    } else {
+      const error = await regRes.json();
+      showMsg(error.message || "注册失败", true);
+    }
+
+  } catch (err) {
+    showMsg("网络错误，请检查连接", true);
+  }
+}
 
     async function activate() {
       const username = localStorage.getItem(usernameKey);
