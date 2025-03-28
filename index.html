@@ -84,68 +84,147 @@
 
   <div id="message"></div>
 
- <script>
-   const API_BASE = "https://8ryy1354.8ryingye.workers.dev";
-   
-  function showMsg(message, isError = false) {
-    const msgElement = document.getElementById("message");
-    msgElement.textContent = message;
-    msgElement.style.color = isError ? "red" : "green";
-  }
+  <script>
+    const API_BASE = 'https://8ryy1354.8ryingye.workers.dev';
+    const usernameKey = "username";
 
-  async function loginOrRegister() {
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
-    if (!username || !password) return showMsg("请输入用户名和密码", true);
+    function showMsg(msg, isError = false) {
+      const msgBox = document.getElementById("message");
+      msgBox.textContent = msg;
+      msgBox.className = isError ? "message error" : "message";
+    }
 
-    try {
-      const res = await fetch(`${API_BASE}/api/login`, {
+    function toggleLoginUI(isLoggedIn, username = "", memberExpiresAt = null) {
+      document.getElementById("login-area").style.display = isLoggedIn ? "none" : "block";
+      document.getElementById("user-area").style.display = isLoggedIn ? "block" : "none";
+      document.getElementById("welcome-user").textContent = isLoggedIn ? `欢迎，${username}` : "";
+
+      const status = document.getElementById("member-status");
+      if (memberExpiresAt) {
+        const expiry = new Date(memberExpiresAt);
+        const now = new Date();
+        const diff = Math.floor((expiry - now) / (1000 * 60 * 60 * 24));
+        status.textContent = `会员有效期至：${expiry.toISOString().split('T')[0]}（还剩 ${diff} 天）`;
+        status.style.color = diff > 0 ? "green" : "red";
+      } else {
+        status.textContent = "非会员用户，请激活";
+        status.style.color = "gray";
+      }
+    }
+
+    async function loginOrRegister() {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      if (!username || !password) return showMsg("请输入用户名和密码", true);
+
+      try {
+        const res = await fetch(`${API_BASE}/api/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+
+        if (res.status === 200) {
+          const data = await res.json();
+          localStorage.setItem(usernameKey, username);
+          toggleLoginUI(true, username, data.memberExpiresAt);
+          showMsg("登录成功");
+        } else {
+          const regRes = await fetch(`${API_BASE}/api/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password }),
+          });
+
+          if (regRes.status === 200) {
+            showMsg("注册成功，正在登录...");
+            loginOrRegister(); // 再次登录
+          } else {
+            const err = await regRes.json();
+            showMsg(err.message || "注册失败", true);
+          }
+        }
+      } catch (err) {
+        showMsg("连接失败，请稍后再试", true);
+      }
+    }
+
+    async function activate() {
+      const username = localStorage.getItem(usernameKey);
+      const code = document.getElementById("activation-code").value.trim();
+      if (!code) return showMsg("请输入激活码", true);
+
+      const res = await fetch(`${API_BASE}/api/activate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, code }),
       });
-      
-      const data = await res.json();
-      if (res.status === 200) {
-        localStorage.setItem("token", data.token);
-        toggleLoginUI(true, username, data.memberExpiresAt);
-        showMsg("登录成功");
-      } else {
-        showMsg(data.message, true);
-      }
-    } catch (err) {
-      showMsg("连接失败，请稍后再试", true);
-    }
-  }
 
-  async function playVideo() {
-    const videoId = document.getElementById("video-id").value.trim();
-    if (!videoId) return showMsg("请输入番号", true);
-    
-    document.getElementById("message").textContent = "加载中...";
-    
-    const token = localStorage.getItem("token");
-    if (!token) return showMsg("请先登录", true);
-    
-    const res = await fetch(`${API_BASE}/api/video`, {
+      const data = await res.json();
+      showMsg(data.message, res.status !== 200);
+
+      if (res.status === 200) {
+        const loginRes = await fetch(`${API_BASE}/api/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password: document.getElementById("password").value }),
+        });
+        const loginData = await loginRes.json();
+        toggleLoginUI(true, username, loginData.memberExpiresAt);
+      }
+    }
+
+    async function playVideo() {
+      const videoId = document.getElementById("video-id").value.trim();
+      if (!videoId) return showMsg("请输入番号", true);
+
+      const res = await fetch(`${API_BASE}/api/video/${videoId}`);
+      const data = await res.json();
+
+      if (data.success && data.videoUrl) {
+        document.getElementById("video-player").style.display = "block";
+        const video = document.getElementById("video");
+
+        if (Hls.isSupported()) {
+          const hls = new Hls();
+          hls.loadSource(data.videoUrl);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+        } else {
+          video.src = data.videoUrl;
+          video.play();
+        }
+
+        showMsg("开始播放视频");
+      } else {
+        showMsg("视频加载失败", true);
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem(usernameKey);
+      toggleLoginUI(false);
+      showMsg("已退出");
+    }
+
+    window.onload = async () => {
+  const username = localStorage.getItem(usernameKey);
+  if (username) {
+    const res = await fetch(`${API_BASE}/api/status`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-      body: JSON.stringify({ videoId })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username }),
     });
 
-    const data = await res.json();
     if (res.status === 200) {
-      document.getElementById("video-player").style.display = "block";
-      const video = document.getElementById("video");
-      video.src = data.videoUrl;
-      video.play();
-      showMsg("开始播放");
+      const data = await res.json();
+      toggleLoginUI(true, username, data.memberExpiresAt);
     } else {
-      showMsg(data.message, true);
+      toggleLoginUI(false);
     }
   }
-</script>
+};
 
-
+  </script>
 </body>
 </html>
