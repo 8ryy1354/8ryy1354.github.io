@@ -85,6 +85,12 @@
   <div id="message"></div>
 
  <script>
+  function showMsg(message, isError = false) {
+    const msgElement = document.getElementById("message");
+    msgElement.textContent = message;
+    msgElement.style.color = isError ? "red" : "green";
+  }
+
   async function loginOrRegister() {
     const username = document.getElementById("username").value.trim();
     const password = document.getElementById("password").value.trim();
@@ -137,6 +143,7 @@
     }
   }
 </script>
+
 
 </body>
 </html>
