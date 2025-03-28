@@ -2,200 +2,92 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>视频平台</title>
   <style>
-    body {
-      font-family: 'Arial', sans-serif;
-      background-color: #f4f4f9;
-      margin: 0;
-      padding: 0;
-    }
-    .container {
-      max-width: 500px;
-      margin: 40px auto;
-      background: #fff;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    h2 {
-      text-align: center;
-      color: #333;
-    }
-    input[type="text"],
-    input[type="password"],
-    input[type="button"] {
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      box-sizing: border-box;
-    }
-    input[type="button"] {
-      background-color: #4caf50;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    input[type="button"]:hover {
-      background-color: #45a049;
-    }
-    .message {
-      text-align: center;
-      color: #333;
-      margin-top: 10px;
-    }
-    .error {
-      color: red;
-    }
-    #video-player {
-      width: 100%;
-      margin-top: 20px;
-      display: none;
-    }
-    video {
-      width: 100%;
-      border-radius: 10px;
-      border: 1px solid #ccc;
-    }
+    body { font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px; }
+    input, button { display: block; width: 100%; margin: 10px 0; padding: 8px; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>🎬 视频播放平台</h2>
+  <h2>用户注册</h2>
+  <input type="text" id="reg-username" placeholder="用户名" />
+  <input type="password" id="reg-password" placeholder="密码" />
+  <button onclick="register()">注册</button>
 
-    <!-- 登录区域 -->
-    <div id="login-area">
-      <input type="text" id="username" placeholder="用户名" />
-      <input type="password" id="password" placeholder="密码" />
-      <input type="button" value="登录 / 注册" onclick="loginOrRegister()" />
-    </div>
+  <h2>用户登录</h2>
+  <input type="text" id="login-username" placeholder="用户名" />
+  <input type="password" id="login-password" placeholder="密码" />
+  <button onclick="login()">登录</button>
 
-    <!-- 登录成功后显示 -->
-    <div id="user-area" style="display:none;">
-      <div style="text-align: right;">
-        <span id="welcome-user"></span>
-        <input type="button" value="退出" onclick="logout()" style="background:#f44336; margin-left:10px;" />
-      </div>
+  <h2>会员激活</h2>
+  <input type="text" id="activation-code" placeholder="激活码" />
+  <button onclick="activate()">激活</button>
 
-      <!-- 激活码 -->
-      <input type="text" id="activation-code" placeholder="输入激活码（如 abc123）" />
-      <input type="button" value="激活会员" onclick="activate()" />
+  <h2>视频播放入口</h2>
+  <input type="text" id="video-id" placeholder="请输入番号，如 IPX-123" />
+  <button onclick="watchVideo()">播放</button>
 
-      <!-- 视频播放 -->
-      <input type="text" id="video-id" placeholder="输入番号（如 IPX-123）" />
-      <input type="button" value="播放视频" onclick="playVideo()" />
-
-      <div id="video-player">
-        <video id="video" controls></video>
-      </div>
-    </div>
-
-    <div class="message" id="message"></div>
-  </div>
+  <div id="message" style="margin-top:20px; color:green;"></div>
 
   <script>
-    const API_BASE = 'https://8ryy1354.8ryingye.workers.dev';
-    const usernameKey = "username";
+    const API_BASE = "https://8ryy1354.8ryingye.workers.dev";
 
-    function showMsg(msg, isError = false) {
-      const msgBox = document.getElementById("message");
-      msgBox.textContent = msg;
-      msgBox.className = isError ? "message error" : "message";
+    function showMsg(msg, error = false) {
+      const box = document.getElementById("message");
+      box.style.color = error ? "red" : "green";
+      box.textContent = msg;
     }
 
-    function toggleLoginUI(isLoggedIn, username = "") {
-      document.getElementById("login-area").style.display = isLoggedIn ? "none" : "block";
-      document.getElementById("user-area").style.display = isLoggedIn ? "block" : "none";
-      document.getElementById("welcome-user").textContent = isLoggedIn ? `欢迎，${username}` : "";
-    }
-
-    async function loginOrRegister() {
-      const username = document.getElementById("username").value.trim();
-      const password = document.getElementById("password").value.trim();
-      if (!username || !password) return showMsg("请输入用户名和密码", true);
-
-      try {
-        // 先尝试登录
-        const res = await fetch(`${API_BASE}/api/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password }),
-        });
-
-        if (res.status === 200) {
-          localStorage.setItem(usernameKey, username);
-          toggleLoginUI(true, username);
-          showMsg("登录成功");
-        } else {
-          // 如果登录失败，则尝试注册
-          const regRes = await fetch(`${API_BASE}/api/register`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
-          });
-
-          if (regRes.status === 200) {
-            showMsg("注册成功，正在登录...");
-            loginOrRegister(); // 再次登录
-          } else {
-            const err = await regRes.json();
-            showMsg(err.message || "注册失败", true);
-          }
-        }
-      } catch (err) {
-        showMsg("连接失败，请稍后再试", true);
-      }
-    }
-
-    async function activate() {
-      const username = localStorage.getItem(usernameKey);
-      const code = document.getElementById("activation-code").value.trim();
-      if (!code) return showMsg("请输入激活码", true);
-
-      const res = await fetch(`${API_BASE}/api/activate`, {
+    async function register() {
+      const username = document.getElementById("reg-username").value;
+      const password = document.getElementById("reg-password").value;
+      const res = await fetch(`${API_BASE}/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, code }),
+        body: JSON.stringify({ username, password })
       });
-
       const data = await res.json();
       showMsg(data.message, res.status !== 200);
     }
 
-    async function playVideo() {
+    async function login() {
+      const username = document.getElementById("login-username").value;
+      const password = document.getElementById("login-password").value;
+      const res = await fetch(`${API_BASE}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      showMsg(data.message, res.status !== 200);
+      if (res.status === 200) localStorage.setItem("username", username);
+    }
+
+    async function activate() {
+      const username = localStorage.getItem("username");
+      const code = document.getElementById("activation-code").value;
+      if (!username) return showMsg("请先登录再激活", true);
+      const res = await fetch(`${API_BASE}/api/activate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, code })
+      });
+      const data = await res.json();
+      showMsg(data.message, res.status !== 200);
+    }
+
+    async function watchVideo() {
       const videoId = document.getElementById("video-id").value.trim();
       if (!videoId) return showMsg("请输入番号", true);
-
       const res = await fetch(`${API_BASE}/api/video/${videoId}`);
       const data = await res.json();
-
-      if (data.success && data.videoUrl) {
-        document.getElementById("video-player").style.display = "block";
-        const video = document.getElementById("video");
-        video.src = data.videoUrl;
-        video.play();
-        showMsg("开始播放视频");
+      if (data.success) {
+        const url = `play.html?url=${encodeURIComponent(data.videoUrl)}`;
+        window.open(url, "_blank");
       } else {
-        showMsg("视频加载失败", true);
+        showMsg("视频获取失败", true);
       }
     }
-
-    function logout() {
-      localStorage.removeItem(usernameKey);
-      toggleLoginUI(false);
-      showMsg("已退出");
-    }
-
-    // 初始化状态
-    window.onload = () => {
-      const username = localStorage.getItem(usernameKey);
-      if (username) {
-        toggleLoginUI(true, username);
-      }
-    };
   </script>
 </body>
 </html>
