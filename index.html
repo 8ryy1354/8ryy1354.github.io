@@ -1,224 +1,177 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <title>视频平台</title>
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频播放平台</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       max-width: 600px;
       margin: auto;
       padding: 20px;
+      background: #f9f9f9;
     }
-
     h2 {
-      margin-top: 30px;
+      text-align: center;
     }
-
     input, button {
-      padding: 8px;
+      padding: 10px;
       margin: 5px 0;
       width: 100%;
       box-sizing: border-box;
     }
-
-    #message {
-      margin-top: 10px;
-      font-weight: bold;
-      color: #2c3e50;
-    }
-
-    .error {
-      color: red;
-    }
-
-    #video-player {
+    #player-section {
       display: none;
       margin-top: 20px;
     }
-
     video {
       width: 100%;
-      max-width: 100%;
+      max-height: 400px;
     }
-
-    .section {
-      margin-bottom: 20px;
-      border: 1px solid #eee;
-      padding: 15px;
-      border-radius: 6px;
-      background: #f9f9f9;
+    .member-info {
+      color: green;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h1>在线视频平台</h1>
+  <h2>视频播放平台</h2>
 
-  <div id="login-area" class="section">
-    <h2>登录 / 注册</h2>
-    <input id="username" placeholder="用户名" />
-    <input id="password" type="password" placeholder="密码" />
-    <button onclick="loginOrRegister()">登录 / 注册</button>
+  <div id="auth-section">
+    <input type="text" id="username" placeholder="用户名" />
+    <input type="password" id="password" placeholder="密码" />
+    <button onclick="register()">注册</button>
+    <button onclick="login()">登录</button>
   </div>
 
-  <div id="user-area" class="section" style="display:none;">
-    <div id="welcome-user"></div>
-    <div id="member-status" style="margin: 10px 0; font-weight: bold;"></div>
-
-    <h2>会员激活</h2>
-    <input id="activation-code" placeholder="请输入激活码" />
-    <button onclick="activate()">激活会员</button>
-
-    <button onclick="logout()" style="margin-top: 10px; background: #ccc;">退出</button>
+  <div id="user-section" style="display: none;">
+    <p>欢迎，<span id="display-username"></span>！<span id="member-status" class="member-info"></span></p>
+    <input type="text" id="activation-code" placeholder="激活码" />
+    <button onclick="activate()">会员激活</button>
+    <button onclick="logout()">退出登录</button>
   </div>
 
-  <div class="section">
-    <h2>番号播放</h2>
-    <input id="video-id" placeholder="请输入番号（如 ABC-123）" />
+  <div id="player-section">
+    <input type="text" id="video-id" placeholder="输入番号，如 IPX-123" />
     <button onclick="playVideo()">播放</button>
-    <div id="video-player">
-      <video id="video" controls></video>
-    </div>
+    <video id="video" controls></video>
   </div>
 
-  <div id="message"></div>
-
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
-    const API_BASE = 'https://8ryy1354.8ryingye.workers.dev';
+    const API_BASE = "https://8ryy1354.8ryingye.workers.dev";
     const usernameKey = "username";
 
-    function showMsg(msg, isError = false) {
-      const msgBox = document.getElementById("message");
-      msgBox.textContent = msg;
-      msgBox.className = isError ? "message error" : "message";
+    async function register() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const res = await fetch(`${API_BASE}/api/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      alert(data.message);
     }
 
-    function toggleLoginUI(isLoggedIn, username = "", memberExpiresAt = null) {
-      document.getElementById("login-area").style.display = isLoggedIn ? "none" : "block";
-      document.getElementById("user-area").style.display = isLoggedIn ? "block" : "none";
-      document.getElementById("welcome-user").textContent = isLoggedIn ? `欢迎，${username}` : "";
-
-      const status = document.getElementById("member-status");
-      if (memberExpiresAt) {
-        const expiry = new Date(memberExpiresAt);
-        const now = new Date();
-        const diff = Math.floor((expiry - now) / (1000 * 60 * 60 * 24));
-        status.textContent = `会员有效期至：${expiry.toISOString().split('T')[0]}（还剩 ${diff} 天）`;
-        status.style.color = diff > 0 ? "green" : "red";
+    async function login() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const res = await fetch(`${API_BASE}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem(usernameKey, username);
+        toggleLoginUI(true, username, data.memberExpiresAt);
       } else {
-        status.textContent = "非会员用户，请激活";
-        status.style.color = "gray";
-      }
-    }
-
-    async function loginOrRegister() {
-      const username = document.getElementById("username").value.trim();
-      const password = document.getElementById("password").value.trim();
-      if (!username || !password) return showMsg("请输入用户名和密码", true);
-
-      try {
-        const res = await fetch(`${API_BASE}/api/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password }),
-        });
-
-        if (res.status === 200) {
-          const data = await res.json();
-          localStorage.setItem(usernameKey, username);
-          toggleLoginUI(true, username, data.memberExpiresAt);
-          showMsg("登录成功");
-        } else {
-          const regRes = await fetch(`${API_BASE}/api/register`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
-          });
-
-          if (regRes.status === 200) {
-            showMsg("注册成功，正在登录...");
-            loginOrRegister(); // 再次登录
-          } else {
-            const err = await regRes.json();
-            showMsg(err.message || "注册失败", true);
-          }
-        }
-      } catch (err) {
-        showMsg("连接失败，请稍后再试", true);
+        alert(data.message);
       }
     }
 
     async function activate() {
       const username = localStorage.getItem(usernameKey);
-      const code = document.getElementById("activation-code").value.trim();
-      if (!code) return showMsg("请输入激活码", true);
-
+      const code = document.getElementById("activation-code").value;
       const res = await fetch(`${API_BASE}/api/activate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, code }),
+        body: JSON.stringify({ username, code })
       });
-
       const data = await res.json();
-      showMsg(data.message, res.status !== 200);
-
-      if (res.status === 200) {
-        const loginRes = await fetch(`${API_BASE}/api/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password: document.getElementById("password").value }),
-        });
-        const loginData = await loginRes.json();
-        toggleLoginUI(true, username, loginData.memberExpiresAt);
+      alert(data.message);
+      if (res.ok) {
+        getMembershipStatus();
       }
     }
 
-    async function playVideo() {
-      const videoId = document.getElementById("video-id").value.trim();
-      if (!videoId) return showMsg("请输入番号", true);
-
-      const res = await fetch(`${API_BASE}/api/video/${videoId}`);
+    async function getMembershipStatus() {
+      const username = localStorage.getItem(usernameKey);
+      const res = await fetch(`${API_BASE}/api/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username })
+      });
       const data = await res.json();
-
-      if (data.success && data.videoUrl) {
-        document.getElementById("video-player").style.display = "block";
-        const video = document.getElementById("video");
-
-        if (Hls.isSupported()) {
-          const hls = new Hls();
-          hls.loadSource(data.videoUrl);
-          hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-        } else {
-          video.src = data.videoUrl;
-          video.play();
-        }
-
-        showMsg("开始播放视频");
-      } else {
-        showMsg("视频加载失败", true);
+      if (res.ok) {
+        toggleLoginUI(true, username, data.memberExpiresAt);
       }
     }
 
     function logout() {
       localStorage.removeItem(usernameKey);
       toggleLoginUI(false);
-      showMsg("已退出");
     }
 
-    window.onload = async () => {
+    function toggleLoginUI(loggedIn, username = "", expiresAt = null) {
+      document.getElementById("auth-section").style.display = loggedIn ? "none" : "block";
+      document.getElementById("user-section").style.display = loggedIn ? "block" : "none";
+      document.getElementById("player-section").style.display = loggedIn ? "block" : "none";
+      document.getElementById("display-username").innerText = username;
+
+      const status = document.getElementById("member-status");
+      if (expiresAt) {
+        const now = new Date();
+        const expiry = new Date(expiresAt);
+        const daysLeft = Math.floor((expiry - now) / (1000 * 60 * 60 * 24));
+        status.innerText = ` | 会员有效期至：${expiry.toISOString().split('T')[0]}（还剩 ${daysLeft} 天）`;
+      } else {
+        status.innerText = " | 非会员用户，请激活";
+      }
+    }
+
+    async function playVideo() {
+      const videoId = document.getElementById("video-id").value;
+      const res = await fetch(`${API_BASE}/api/video/${videoId}`);
+      const data = await res.json();
+      if (data.success) {
+        const video = document.getElementById("video");
+        if (Hls.isSupported()) {
+          const hls = new Hls();
+          hls.loadSource(data.videoUrl);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            video.currentTime = 20;
+            video.play();
+          });
+        } else {
+          video.src = data.videoUrl;
+          video.currentTime = 20;
+          video.play();
+        }
+      } else {
+        alert("无法获取视频链接");
+      }
+    }
+
+    window.onload = () => {
       const username = localStorage.getItem(usernameKey);
       if (username) {
-        const res = await fetch(`${API_BASE}/api/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password: "" })
-        });
-        const data = await res.json();
-        toggleLoginUI(true, username, data.memberExpiresAt);
+        getMembershipStatus();
       }
-    };
+    }
   </script>
 </body>
 </html>
